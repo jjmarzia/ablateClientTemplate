@@ -34,4 +34,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # define the two sample programs and link to ablate
 add_executable(ablateLibraryClient ablateLibraryClient.cpp)
+add_executable(ablateLibraryClient_bubble ablateLibraryClient_bubble.cpp)
 target_link_libraries(ablateLibraryClient PUBLIC ablateLibrary)
+target_link_libraries(ablateLibraryClient_bubble PUBLIC ablateLibrary)
