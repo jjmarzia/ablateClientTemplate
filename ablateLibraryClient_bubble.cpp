@@ -1,7 +1,5 @@
 #include <string>
-#include <iostream>
 #include <memory>
-#include "petsc.h"
 #include "environment/runEnvironment.hpp"
 #include "mathFunctions/functionFactory.hpp"
 #include "builder.hpp"
@@ -9,20 +7,16 @@
 #include "domain/modifiers/distributeWithGhostCells.hpp"
 #include "domain/modifiers/ghostBoundaryCells.hpp"
 #include "eos/perfectGas.hpp"
-
-#include "finiteVolume/fluxCalculator/ausm.hpp"
 #include "io/interval/fixedInterval.hpp"
 #include "monitors/timeStepMonitor.hpp"
 #include "parameters/mapParameters.hpp"
 #include "utilities/petscUtilities.hpp"
-
 #include "io/hdf5MultiFileSerializer.hpp"
 #include "finiteVolume/compressibleFlowFields.hpp"
 #include "finiteVolume/fieldFunctions/euler.hpp"
 #include "finiteVolume/fieldFunctions/compressibleFlowState.hpp"
 #include "finiteVolume/boundaryConditions/essentialGhost.hpp"
 #include "solver/timeStepper.hpp"
-#include "mathFunctions/mathFunction.hpp"
 #include "finiteVolume/finiteVolumeSolver.hpp"
 #include "finiteVolume/processes/Process.hpp"
 #include "finiteVolume/processes/twoPhaseEulerAdvection.hpp"
@@ -31,11 +25,10 @@
 #include "finiteVolume/processes/surfaceForce.hpp"
 #include "domain/initializer.hpp"
 #include "finiteVolume/fieldFunctions/densityVolumeFraction.hpp"
-#include "mathFunctions/formula.hpp"
 #include "mathFunctions/fieldFunction.hpp"
 #include "domain/field.hpp"
-#include "io/interval/fixedInterval.hpp"
 #include "monitors/logs/stdOut.hpp"
+#include "io/interval/simulationTimeInterval.hpp"
 
 int main(int argc, char **argv) {
     // initialize petsc and mpi
@@ -52,7 +45,7 @@ int main(int argc, char **argv) {
 
         auto eos = std::make_shared<ablate::eos::PerfectGas>(
         ablate::parameters::MapParameters::Create({
-            { "gamma", "0" }, { "Rgas", "0" }
+            { "gamma", 0 }, { "Rgas", 0 }
         })
         );
 
@@ -99,7 +92,7 @@ int main(int argc, char **argv) {
         );
 
         auto serializer  = std::make_shared<ablate::io::Hdf5MultiFileSerializer>(
-                    std::make_shared<ablate::io::interval::FixedInterval>(0.1)
+                    std::make_shared<ablate::io::interval::SimulationTimeInterval>(0.1)
                     );
 //
 //         Set up the flow data
@@ -134,7 +127,7 @@ int main(int argc, char **argv) {
         // create a time stepper
         auto timeStepper = ablate::solver::TimeStepper("theMainTimeStepper",
                                                        domain,
-                                                       ablate::parameters::MapParameters::Create({{"ts_adapt_type", "physicsConstrained"}, {"ts_max_time", "0.5"}, {"ts_dt", "1e-2"}}),
+                                                       ablate::parameters::MapParameters::Create({{"ts_type","euler"}, {"ts_adapt_type", "physicsConstrained"}, {"ts_max_time", "1.1"}, {"ts_dt", "1e-2"}}),
                                                        serializer,
                                                        initialization);
 
@@ -163,19 +156,19 @@ int main(int argc, char **argv) {
                 std::vector<int>{1, 2, 3, 4},
                 boundaryFunctionWalls,
                 "",
-                true),
+                false),
             std::make_shared<ablate::finiteVolume::boundaryConditions::EssentialGhost>(
                 "densityVF",
                 std::vector<int>{1, 2, 3, 4},
                 boundaryFunctionDensityVF,
                 "",
-                true),
+                false),
             std::make_shared<ablate::finiteVolume::boundaryConditions::EssentialGhost>(
                 "vf",
                 std::vector<int>{1, 2, 3, 4},
                 boundaryFunctionVF,
                 "",
-                true)
+                false)
         };
 
         auto reimannStiffGasGas = std::make_shared<ablate::finiteVolume::fluxCalculator::RiemannStiff>(eos1, eos2);
@@ -190,12 +183,12 @@ int main(int argc, char **argv) {
                                                                                                                 reimannStiffLiquidGas,
                                                                                                                 reimannStiffLiquidLiquid);
 
-        auto surfaceForceSigma = std::make_shared<ablate::finiteVolume::processes::SurfaceForce>(1.125);
+//        auto surfaceForceSigma = std::make_shared<ablate::finiteVolume::processes::SurfaceForce>(1.125);
 
         auto processes = std::vector<std::shared_ptr<ablate::finiteVolume::processes::Process> >{
             // GG, GL, LG, LL
             twoPhaseEulerAdvection,
-            surfaceForceSigma
+//            surfaceForceSigma
                 };
 
         auto flowSolver = std::make_shared<ablate::finiteVolume::FiniteVolumeSolver>("flow solver", //id, region, options/parameters, processes, boundary conditions
@@ -205,7 +198,7 @@ int main(int argc, char **argv) {
                                                                                      boundaryConditions
                                                                                      );
 
-        auto fixedInterval = std::make_shared<ablate::io::interval::FixedInterval>(100);
+        auto fixedInterval = std::make_shared<ablate::io::interval::FixedInterval>(1);
         auto stdOut = std::make_shared<ablate::monitors::logs::StdOut>();
 
         auto monitor = std::make_shared<ablate::monitors::TimeStepMonitor>(
