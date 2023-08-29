@@ -37,37 +37,6 @@
 #include "io/interval/fixedInterval.hpp"
 #include "monitors/logs/stdOut.hpp"
 
-
-//typedef struct {
-//    PetscScalar rho;
-//    PetscScalar vx;
-//    PetscScalar vy;
-//    PetscScalar vz;
-//} InitialConditions;
-
-//static PetscErrorCode SetInitialCondition(PetscInt dim, PetscScalar time, const PetscScalar x[], PetscInt Nf, PetscScalar *u, void *ctx) {
-//    InitialConditions *initialConditions = (InitialConditions *)ctx;
-//
-//    u[ablate::finiteVolume::CompressibleFlowFields::RHO] = initialConditions->rho;
-//    u[ablate::finiteVolume::CompressibleFlowFields::RHOU] = initialConditions->rho * initialConditions->vx;
-//    u[ablate::finiteVolume::CompressibleFlowFields::RHOV] = initialConditions->rho * initialConditions->vy;
-//    u[ablate::finiteVolume::CompressibleFlowFields::RHOW] = initialConditions->rho * initialConditions->vz;
-//
-//    return 0;
-//}
-
-//static PetscErrorCode PhysicsBoundary_Euler(PetscScalar time, const PetscScalar *c, const PetscScalar *n, const PetscScalar *a_xI, PetscScalar *a_xG, void *ctx) {
-//    InitialConditions *initialConditions = (InitialConditions *)ctx;
-//
-//    a_xG[ablate::finiteVolume::CompressibleFlowFields::RHO] = initialConditions->rho;
-//    a_xG[ablate::finiteVolume::CompressibleFlowFields::RHOU] = initialConditions->rho * initialConditions-> vx;
-//    a_xG[ablate::finiteVolume::CompressibleFlowFields::RHOV] = initialConditions->rho * initialConditions-> vy;
-//    a_xG[ablate::finiteVolume::CompressibleFlowFields::RHOW] = initialConditions->rho * initialConditions-> vz;
-//
-//    return 0;
-//    PetscFunctionReturn(0);
-//}
-
 int main(int argc, char **argv) {
     // initialize petsc and mpi
     ablate::environment::RunEnvironment::Initialize(&argc, &argv);
@@ -107,7 +76,7 @@ int main(int argc, char **argv) {
             std::make_shared<ablate::finiteVolume::CompressibleFlowFields>(eos),
 
             std::make_shared<ablate::domain::FieldDescription>(
-                "densityVolumeFraction", "dvf", ablate::domain::FieldDescription::ONECOMPONENT, ablate::domain::FieldLocation::SOL, ablate::domain::FieldType::FVM),
+                "densityvolumeFraction", "dvf", ablate::domain::FieldDescription::ONECOMPONENT, ablate::domain::FieldLocation::SOL, ablate::domain::FieldType::FVM),
             std::make_shared<ablate::domain::FieldDescription>(
                 "volumeFraction", "vf", ablate::domain::FieldDescription::ONECOMPONENT, ablate::domain::FieldLocation::SOL, ablate::domain::FieldType::FVM),
             std::make_shared<ablate::domain::FieldDescription>("pressure", "p", ablate::domain::FieldDescription::ONECOMPONENT, ablate::domain::FieldLocation::AUX, ablate::domain::FieldType::FVM)};
@@ -180,8 +149,12 @@ int main(int argc, char **argv) {
             "densityvolumeFraction",
             solutionFieldDensityVF
         );
+//        auto boundaryFunctionDensityVF = std::make_shared<ablate::finiteVolume::fieldFunctions::DensityVolumeFraction>(
+//            eosTwoPhase,
+//            ablate::domain::Region::ENTIREDOMAIN
+//            );
         auto boundaryFunctionVF = std::make_shared<ablate::mathFunctions::FieldFunction>(
-            "vf",
+            "volumeFraction",
             solutionFieldVF
             );
         auto boundaryConditions = std::vector<std::shared_ptr<ablate::finiteVolume::boundaryConditions::BoundaryCondition> >{
