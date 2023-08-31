@@ -1,0 +1,117 @@
+---
+environment:
+  title: Curvature_AirAir_80x80TT
+  tagDirectory: false
+arguments: {}
+timestepper:
+  name: theMainTimeStepper
+  arguments:
+    ts_type: euler
+    # ts_max_steps: 2
+    ts_dt: 1e-2
+    ts_adapt_type: physicsConstrained
+    ts_max_time: 1.1
+  io: !ablate::io::Hdf5MultiFileSerializer
+    interval: !ablate::io::interval::SimulationTimeInterval 0.1
+  domain: !ablate::domain::BoxMesh
+    name: simpleBoxField
+    faces: [40, 40]
+    lower: [-2, -2]
+    upper: [2, 2]
+    boundary: [NONE, NONE]
+    options:
+      dm_refine: 1
+    modifiers:
+      - !ablate::domain::modifiers::DistributeWithGhostCells
+      - !ablate::domain::modifiers::GhostBoundaryCells
+      # - !ablate::domain::modifiers::OnePointClusteringMapper
+      #   direction: 0
+      #   start: -5
+      #   end: 5
+      #   beta: 5
+      #   location: 0
+      # - !ablate::domain::modifiers::OnePointClusteringMapper
+      #   direction: 1
+      #   start: -5
+      #   end: 5
+      #   beta: 5
+      #   location: 0
+
+    fields:
+      - !ablate::finiteVolume::CompressibleFlowFields
+        eos: !ablate::eos::PerfectGas
+          parameters:
+            gamma: 0
+            Rgas: 0
+      - name: densityvolumeFraction
+        type: FVM
+      - name: volumeFraction
+        type: FVM
+      - name: pressure
+        location: AUX
+        type: FVM
+  initialization:
+    - !ablate::finiteVolume::fieldFunctions::Euler
+      state: &flowfieldState
+        eos: !ablate::eos::TwoPhase &eosTwoPhase
+          eos1: !ablate::eos::PerfectGas &eosAir
+            parameters:
+              gamma: 1.4
+              Rgas: 287.0
+          eos2: *eosAir
+        temperature: "300" # rho=3.132832080200501 inside
+        pressure: "(x^2+y^2) < 1 ? 1e5+0.251036495228486 : ( (x^2+y^2) < 1.1025  ? 1e5+0.209197079357072 : ( (x^2+y^2) < 1.21 ? 1e5+0.167357663485657 : ( (x^2+y^2) < 1.3225 ? 1e5+0.125518247614243 : ( (x^2+y^2) < 1.44 ? 1e5+0.083678831742829 : ( (x^2+y^2) < 1.5625 ? 1e5+0.041839415871414 : 1e5 )))))"
+        # "(x^2+y^2) < 1 ? 1e5+0.251036495228486 : ( (x^2+y^2) < 1.265625 ? 1e5+0.167357663485657 : ( (x^2+y^2) < 1.5625 ? 1e5+0.083678831742829 : 1e5) ) " # radius=2, sigma=2
+        velocity: 0,0
+        other:
+          fieldName: volumeFraction
+          field:  "(x^2+y^2) < 1 ?  0 : ( (x^2+y^2) < 1.1025  ? 0.166666666666667 : ( (x^2+y^2) < 1.21 ? 0.333333333333333 : ( (x^2+y^2) < 1.3225 ? 0.5 : ( (x^2+y^2) < 1.44 ? 0.666666666666667 : ( (x^2+y^2) < 1.5625 ? 0.833333333333333 : 1.0 )))))"
+    - !ablate::finiteVolume::fieldFunctions::DensityVolumeFraction
+      state: *flowfieldState
+    - fieldName: volumeFraction
+      field:  "(x^2+y^2) < 1 ?  0 : ( (x^2+y^2) < 1.1025  ? 0.166666666666667 : ( (x^2+y^2) < 1.21 ? 0.333333333333333 : ( (x^2+y^2) < 1.3225 ? 0.5 : ( (x^2+y^2) < 1.44 ? 0.666666666666667 : ( (x^2+y^2) < 1.5625 ? 0.833333333333333 : 1.0 )))))"
+solver: !ablate::finiteVolume::FiniteVolumeSolver
+  id: flow solver
+  processes:
+    - !ablate::finiteVolume::processes::TwoPhaseEulerAdvection
+      parameters:
+        cfl: 0.5
+      eos: *eosTwoPhase
+      fluxCalculatorGasGas: !ablate::finiteVolume::fluxCalculator::RiemannStiff
+        eosL: *eosAir
+        eosR: *eosAir
+      fluxCalculatorGasLiquid: !ablate::finiteVolume::fluxCalculator::RiemannStiff
+        eosL: *eosAir
+        eosR: *eosAir
+      fluxCalculatorLiquidGas: !ablate::finiteVolume::fluxCalculator::RiemannStiff
+        eosL: *eosAir
+        eosR: *eosAir
+      fluxCalculatorLiquidLiquid: !ablate::finiteVolume::fluxCalculator::RiemannStiff
+        eosL: *eosAir
+        eosR: *eosAir
+    - !ablate::finiteVolume::processes::SurfaceForce
+      sigma: 1.125 # 0.07 # surface tension similar to air/water at 300K
+  boundaryConditions:
+    - !ablate::finiteVolume::boundaryConditions::EssentialGhost
+      boundaryName: "walls"
+      labelIds: [ 1,2,3,4 ]
+      boundaryValue:
+        fieldName: euler
+        field: "1.1614401858304297, 
+          1.1614401858304297*215250.0,
+          0.0, 0.0"
+    - !ablate::finiteVolume::boundaryConditions::EssentialGhost
+      boundaryName: "densityVF"
+      labelIds: [ 1,2,3,4 ]
+      boundaryValue:
+        fieldName: densityvolumeFraction
+        field: "1.1614401858304297"
+    - !ablate::finiteVolume::boundaryConditions::EssentialGhost
+      boundaryName: "vf"
+      labelIds: [ 1,2,3,4 ]
+      boundaryValue:
+        fieldName: volumeFraction
+        field: "1.0"
+  monitors:
+    - !ablate::monitors::TimeStepMonitor
+      interval: 100

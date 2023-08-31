@@ -34,13 +34,14 @@ int main(int argc, char **argv) {
     // initialize petsc and mpi
     ablate::environment::RunEnvironment::Initialize(&argc, &argv);
     ablate::utilities::PetscUtilities::Initialize();
-
     {
 
+        //environment:
+        //title:
+        //tagDirectory:
         ablate::parameters::MapParameters runEnvironmentParameters(
-                std::map<std::string, std::string>{{"title", "curvature_AirAir_80x80tt"}}
+                std::map<std::string, std::string>{{"title", "curvature_AirAir_80x80tt_pressureGradient"}, {"tagDirectory", "false"}}
         );
-
         ablate::environment::RunEnvironment::Setup(runEnvironmentParameters);
 
         auto eos = std::make_shared<ablate::eos::PerfectGas>(
@@ -65,6 +66,8 @@ int main(int argc, char **argv) {
                 eos1, eos2
         );
 
+        //fields:
+
         auto fields = std::vector<std::shared_ptr<ablate::domain::FieldDescriptor>>{
             std::make_shared<ablate::finiteVolume::CompressibleFlowFields>(eos),
 
@@ -72,12 +75,23 @@ int main(int argc, char **argv) {
                 "densityvolumeFraction", "dvf", ablate::domain::FieldDescription::ONECOMPONENT, ablate::domain::FieldLocation::SOL, ablate::domain::FieldType::FVM),
             std::make_shared<ablate::domain::FieldDescription>(
                 "volumeFraction", "vf", ablate::domain::FieldDescription::ONECOMPONENT, ablate::domain::FieldLocation::SOL, ablate::domain::FieldType::FVM),
-            std::make_shared<ablate::domain::FieldDescription>("pressure", "p", ablate::domain::FieldDescription::ONECOMPONENT, ablate::domain::FieldLocation::AUX, ablate::domain::FieldType::FVM)};
+            std::make_shared<ablate::domain::FieldDescription>(
+                "pressure", "p", ablate::domain::FieldDescription::ONECOMPONENT, ablate::domain::FieldLocation::AUX, ablate::domain::FieldType::FVM)};
 
         auto modifiers = std::vector<std::shared_ptr<ablate::domain::modifiers::Modifier>>{
             std::make_shared<ablate::domain::modifiers::DistributeWithGhostCells>(1),
             std::make_shared<ablate::domain::modifiers::GhostBoundaryCells>("Face Sets")};
 
+        //domain:
+        //name:
+        //faces:
+        //lower:
+        //upper:
+        //boundary:
+        //options:
+        //dm_refine:
+        //modifiers:
+        //fields:
         auto domain = std::make_shared<ablate::domain::BoxMesh>(
             "simpleBoxField",
                                                                 fields,
@@ -91,6 +105,9 @@ int main(int argc, char **argv) {
                                                                 )
         );
 
+        //io/serializer:
+        //interval:
+
         auto serializer  = std::make_shared<ablate::io::Hdf5MultiFileSerializer>(
                     std::make_shared<ablate::io::interval::SimulationTimeInterval>(0.1)
                     );
@@ -101,9 +118,9 @@ int main(int argc, char **argv) {
         );
 
         auto solutionFieldVolumeFractionCFS = std::make_shared<ablate::mathFunctions::SimpleFormula>("(x^2+y^2) < 1 ?  0 : ( (x^2+y^2) < 1.1025  ? 0.166666666666667 : ( (x^2+y^2) < 1.21 ? 0.333333333333333 : ( (x^2+y^2) < 1.3225 ? 0.5 : ( (x^2+y^2) < 1.44 ? 0.666666666666667 : ( (x^2+y^2) < 1.5625 ? 0.833333333333333 : 1.0 )))))");
-        auto solutionFieldTemperatureCFS = std::make_shared<ablate::mathFunctions::SimpleFormula>("300");
+        auto solutionFieldTemperatureCFS = std::make_shared<ablate::mathFunctions::ConstantValue>(300);
         auto solutionFieldPressureCFS = std::make_shared<ablate::mathFunctions::SimpleFormula>("(x^2+y^2) < 1 ? 1e5+0.251036495228486 : ( (x^2+y^2) < 1.1025  ? 1e5+0.209197079357072 : ( (x^2+y^2) < 1.21 ? 1e5+0.167357663485657 : ( (x^2+y^2) < 1.3225 ? 1e5+0.125518247614243 : ( (x^2+y^2) < 1.44 ? 1e5+0.083678831742829 : ( (x^2+y^2) < 1.5625 ? 1e5+0.041839415871414 : 1e5 )))))");
-        auto solutionFieldVelocityCFS = std::make_shared<ablate::mathFunctions::SimpleFormula>("0");
+        auto solutionFieldVelocityCFS = std::make_shared<ablate::mathFunctions::ConstantValue>(0);
         auto volumeFractionCFS = std::make_shared<ablate::mathFunctions::FieldFunction>(
             "volumeFraction",
             solutionFieldVolumeFractionCFS
@@ -124,7 +141,16 @@ int main(int argc, char **argv) {
         });
 
 
-        // create a time stepper
+        // timestepper:
+        // name:
+        // arguments:
+        // ts_type:
+        // ts_dt:
+        // ts_adapt_type:
+        // ts_max_time:
+        // io/serializer:
+        // domain:
+        // initialization:
         auto timeStepper = ablate::solver::TimeStepper("theMainTimeStepper",
                                                        domain,
                                                        ablate::parameters::MapParameters::Create({{"ts_type","euler"}, {"ts_adapt_type", "physicsConstrained"}, {"ts_max_time", "1.1"}, {"ts_dt", "1e-2"}}),
@@ -190,6 +216,8 @@ int main(int argc, char **argv) {
             twoPhaseEulerAdvection,
 //            surfaceForceSigma
                 };
+
+        //
 
         auto flowSolver = std::make_shared<ablate::finiteVolume::FiniteVolumeSolver>("flow solver", //id, region, options/parameters, processes, boundary conditions
                                                                                      ablate::domain::Region::ENTIREDOMAIN,
